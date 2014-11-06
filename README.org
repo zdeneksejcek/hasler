@@ -1,5 +1,4 @@
-hasler
-======
+* Hasler
 
 Experimental distributed server for domain driven designed applications, supporting event sourcing, state-ful aggregate roots, CQRS etc. Built on Riak Core.
 
