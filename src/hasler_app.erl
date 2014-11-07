@@ -21,9 +21,6 @@ start() ->
     application:start(pbkdf2),
     application:start(poolboy),
     application:start(riak_core),
-    % hasler:start(),
-
-    % musim vyresit problem se startem hasler applikace, aby to furt nervalo, jinak SUPER!
 
     application:start(hasler).
 
