@@ -1,6 +1,7 @@
 -module(hasler_command_fsm).
 -behaviour(gen_fsm).
 
+-include("../include/hasler.hrl").
 
 %% API
 -export([start_link/1]).
@@ -18,21 +19,13 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {command}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Creates a gen_fsm process which calls Module:init/1 to
-%% initialize. To ensure a synchronized start-up procedure, this
-%% function does not return until Module:init/1 has returned.
-%%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
+% {ok, Pid} | ignore | {error, Error}
 start_link(Command) ->
     gen_fsm:start_link(?MODULE, [Command], []).
 
@@ -40,19 +33,10 @@ start_link(Command) ->
 %%% gen_fsm callbacks
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Whenever a gen_fsm is started using gen_fsm:start/[3,4] or
-%% gen_fsm:start_link/[3,4], this function is called by the new
-%% process to initialize.
-%%
-%% @spec init(Args) -> {ok, StateName, State} |
-%%                     {ok, StateName, State, Timeout} |
-%%                     ignore |
-%%                     {stop, StopReason}
-%% @end
-%%--------------------------------------------------------------------
+% {ok, StateName, State} |
+% {ok, StateName, State, Timeout} |
+% ignore |
+% {stop, StopReason}
 init([Command]) ->
     io:format("FSM started ~p ~n",[Command]),
     {ok, running, #state{}}.
