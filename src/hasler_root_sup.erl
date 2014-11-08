@@ -1,4 +1,4 @@
--module(hasler_command_sup).
+-module(hasler_root_sup).
 -behaviour(supervisor).
 
 %% API
@@ -25,6 +25,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    Commands = ?CHILD(hasler_command_fsm, worker),
+    Commands = ?CHILD(hasler_root_fsm, worker),
     
     {ok, {{simple_one_for_one, 10, 10}, [Commands]}}.
+

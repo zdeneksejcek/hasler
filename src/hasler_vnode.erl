@@ -30,13 +30,15 @@ handle_command(ping, Sender, State) ->
     Count = State#state.count + 1,
     NewState = State#state{count=Count+1},
     {reply, {pong, NewState#state.count, sender, Sender}, NewState};
-handle_command(time, _Sender, State) ->
-    {reply, {now(),State#state.partition}, State};
+handle_command(time, Sender, State) ->
+    gen_fsm:send_event(Sender, now()),
+    {noreply, State};
+
 handle_command(count, _Sender, State) ->
     {reply, State#state.count, State};
 handle_command(Message, _Sender, State) ->
     io:format("unknown command: ~p", [Message]),
-    {noreply, State}.
+    {reply, unknown, State}.
 
 handle_handoff_command(_Message, _Sender, State) ->
     {noreply, State}.

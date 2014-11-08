@@ -1,4 +1,4 @@
--module(hasler_command_fsm).
+-module(hasler_root_fsm).
 -behaviour(gen_fsm).
 
 -include("../include/hasler.hrl").
@@ -39,7 +39,7 @@ start_link(Command) ->
 % ignore |
 % {stop, StopReason}
 init([Command]) ->
-    io:format("FSM started ~p ~n",[Command]),
+    io:format("root started ~p ~n",[Command]),
     com(Command),
     {ok, waiting, #state{}}.
 
