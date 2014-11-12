@@ -2,7 +2,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0,start_command_fsm/2]).
+-export([start_link/0,start_root_fsm/4]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -14,8 +14,8 @@
 %% API functions
 %% ===================================================================
 
-start_command_fsm(Node, Command) ->
-    supervisor:start_child({?MODULE, Node}, [Command]).
+start_root_fsm(Node, Id, Root_module, Args) ->
+    supervisor:start_child({?MODULE, Node}, [Id, Root_module, Args]).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
@@ -25,7 +25,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    io:format("hasler root supervisor started: ~n", []),
     Commands = ?CHILD(hasler_root_fsm, worker),
     
     {ok, {{simple_one_for_one, 10, 10}, [Commands]}}.
-

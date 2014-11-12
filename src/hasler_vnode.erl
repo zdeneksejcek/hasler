@@ -26,19 +26,16 @@ init([Partition]) ->
     {ok, #state { partition=Partition, count=0 }}.
 
 % Sample command: respond to a ping
-handle_command(ping, Sender, State) ->
-    Count = State#state.count + 1,
-    NewState = State#state{count=Count+1},
-    {reply, {pong, NewState#state.count, sender, Sender}, NewState};
-handle_command(time, Sender, State) ->
-    gen_fsm:send_event(Sender, now()),
+handle_command({Id, {create, Root_module, Args}}, _Sender, State) ->
+    io:format("create root: id:~p ~p~n", [Id, Args]),
+    {ok, Pid} = hasler_root_sup:start_root_fsm(node(), Id, Root_module, Args),
+
     {noreply, State};
 
-handle_command(count, _Sender, State) ->
-    {reply, State#state.count, State};
-handle_command(Message, _Sender, State) ->
-    io:format("unknown command: ~p", [Message]),
-    {reply, unknown, State}.
+handle_command(Command, _Sender, State) ->
+    io:format("unknown root command: ~p~n", [Command]),
+    {noreply, State}.
+
 
 handle_handoff_command(_Message, _Sender, State) ->
     {noreply, State}.

@@ -34,7 +34,7 @@ start(_StartType, _StartArgs) ->
             ok = riak_core:register(hasler, [{vnode_module, hasler_vnode}]),
             ok = riak_core_node_watcher:service_up(hasler, self()),
             Services = riak_core_node_watcher:services(),
-            io:format("services: ~p", [Services]),
+            io:format("riak services: ~p~n", [Services]),
 
             {ok, Pid};
         {error, Reason} ->

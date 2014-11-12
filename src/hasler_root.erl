@@ -2,8 +2,7 @@
 -export([behaviour_info/1]).
  
 behaviour_info(callbacks) ->
-    [{init,1},
-     {default_state,0},
+    [{create, 2},
      {command, 2},
      {event, 2}];
 

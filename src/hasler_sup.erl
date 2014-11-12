@@ -22,15 +22,14 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    VMaster = { hasler_vnode_master,
-                  {riak_core_vnode_master, start_link, [hasler_vnode]},
-                  permanent, 5000, worker, [riak_core_vnode_master]},
+    VMaster = {hasler_vnode_master,
+        {riak_core_vnode_master, start_link, [hasler_vnode]},
+        permanent, 5000, worker, [riak_core_vnode_master]},
 
     Command_sup = ?CHILD(hasler_command_sup, supervisor),
 
+    Root_sup = ?CHILD(hasler_root_sup, supervisor),
+
     {ok,
-     {{one_for_one, 5, 10},
-      [VMaster, Command_sup]}}.
-
-    % {ok, { {one_for_one, 5, 10}, []} }.
-
+        {{one_for_one, 5, 10},
+            [VMaster, Command_sup, Root_sup]}}.

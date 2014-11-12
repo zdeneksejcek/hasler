@@ -1,10 +1,10 @@
 -module(hasler_command_fsm).
 -behaviour(gen_fsm).
 
--include("../include/hasler.hrl").
+-include("hasler.hrl").
 
 %% API
--export([start_link/1]).
+-export([start_link/2]).
 
 %% gen_fsm callbacks
 -export([init/1,
@@ -20,15 +20,15 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {command}).
+-record(state, {module, name, args, inner_state}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 % {ok, Pid} | ignore | {error, Error}
-start_link(Command) ->
-    gen_fsm:start_link(?MODULE, [Command], []).
+start_link(Module, Command) ->
+    gen_fsm:start_link(?MODULE, [Module, Command], []).
 
 %%%===================================================================
 %%% gen_fsm callbacks
@@ -38,18 +38,14 @@ start_link(Command) ->
 % {ok, StateName, State, Timeout} |
 % ignore |
 % {stop, StopReason}
-init([Command]) ->
-    io:format("FSM started ~p ~n",[Command]),
-    com(Command),
-    {ok, waiting, #state{}}.
+init([Module, {Name, Args}]) ->
+    io:format("command started ~p ! ~p ~n",[Module, Name]),
+    State = #state{module = Module, name = Name, args = Args},
+    case erlang:apply(Module, start, [{Name, Args}]) of
+        {ok} -> {ok, waiting, State};
+        {stop, _Reason} -> {ok, waiting, State}
+    end.
 
-com(Command) ->
-    DocIdx = riak_core_util:chash_key({<<"ping">>, term_to_binary(now())}),
-    PrefList = riak_core_apl:get_primary_apl(DocIdx, 1, hasler),
-    [{IndexNode, _Type}] = PrefList,
-    % riak_core_vnode_master:command_unreliable(PrefList, Command, hasler_vnode_master).
-    Result = riak_core_vnode_master:command(IndexNode, Command, self(), hasler_vnode_master),
-    ok.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -71,6 +67,7 @@ running(_Event, State) ->
 
 running_again(_Event, State) ->
     {next_state, running_again, State}.
+
 
 waiting(Event, State) ->
     io:format("event: ~p state: ~p ~n~n",[Event, State]),
