@@ -8,7 +8,7 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type, Timeout), {I, {I, start_link, []}, permanent, Timeout, Type, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -26,10 +26,12 @@ init([]) ->
         {riak_core_vnode_master, start_link, [hasler_vnode]},
         permanent, 5000, worker, [riak_core_vnode_master]},
 
-    Command_sup = ?CHILD(hasler_command_sup, supervisor),
+    Command_sup = ?CHILD(hasler_command_sup, supervisor, 5000),
 
-    Root_sup = ?CHILD(hasler_root_sup, supervisor),
+    Storage_sup = ?CHILD(hasler_storage_sup, supervisor, 20000),
+
+    Root_sup = ?CHILD(hasler_root_sup, supervisor, 20000),
 
     {ok,
         {{one_for_one, 5, 10},
-            [VMaster, Command_sup, Root_sup]}}.
+            [VMaster, Command_sup, Root_sup, Storage_sup]}}.

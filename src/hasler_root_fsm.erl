@@ -4,7 +4,7 @@
 -include("../include/hasler.hrl").
 
 %% API
--export([start_link/3]).
+-export([start_link/4]).
 
 %% gen_fsm callbacks
 -export([init/1,
@@ -17,15 +17,17 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {id, root_module}).
+-record(state, {id, root_module, root_state}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 % {ok, Pid} | ignore | {error, Error}
-start_link(Id, Root_module, Args) ->
-    gen_fsm:start_link(?MODULE, [Id, Root_module, Args], []).
+start_link(Id, Root_module, Args, Sender) ->
+    Result = gen_fsm:start_link(?MODULE, [Id, Root_module, Args, Sender], []),
+%%     io:format("start_link result: ~p~n", [Result]),
+    Result.
 
 %%%===================================================================
 %%% gen_fsm callbacks
@@ -35,14 +37,20 @@ start_link(Id, Root_module, Args) ->
 % {ok, StateName, State, Timeout} |
 % ignore |
 % {stop, StopReason}
-init([Id, Root_module, Args]) ->
-    io:format("root started ~p (~p) ~n",[Root_module, Args]),
-    NewState = #state{id = Id, root_module = Root_module},
+init([Id, Root_module, Args, Sender]) ->
+    case erlang:apply(Root_module, create, [Args]) of
+        {ok, {Event_name, Arg_list}} ->
+            Root_state = erlang:apply(Root_module, Event_name, [Arg_list, nil]),
+            hasler:reply(Sender, ok),
+            {ok, waiting, #state{
+                            id = Id,
+                            root_module = Root_module,
+                            root_state = Root_state}};
 
-
-
-    {ok, waiting, NewState}.
-
+        Error ->
+            hasler:reply(Sender, Error),
+            {stop, normal}
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -59,10 +67,20 @@ init([Id, Root_module, Args]) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
-waiting(Event, State) ->
-    io:format("event: ~p state: ~p ~n~n",[Event, State]),
-    {stop, normal, State}.
+waiting({Command, Sender}, State) ->
+    io:format("before: ~p state: ~p ~n~n",[Command, State#state.root_state]),
+    case erlang:apply(State#state.root_module, Command, [nil, State#state.root_state]) of
+        {ok, {Event_name, Arg_list}} ->
+            Root_state = erlang:apply(State#state.root_module, Event_name, [Arg_list, State#state.root_state]),
+            NewState = State#state{root_state = Root_state},
+            hasler:reply(Sender, ok),
+            io:format("after: ~p state: ~p ~n~n",[Command, NewState#state.root_state]),
+            {next_state, waiting, NewState};
 
+        Error ->
+            hasler:reply(Sender, Error),
+            {stop, normal, State}
+    end.
 
 
 

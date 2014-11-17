@@ -16,26 +16,46 @@
          handle_coverage/4,
          handle_exit/3]).
 
--record(state, {partition, count}).
+-record(state, {partition, vnode_namespace, count}).
 
 %% API
 start_vnode(I) ->
     riak_core_vnode_master:get_vnode_pid(I, ?MODULE).
 
 init([Partition]) ->
-    {ok, #state { partition=Partition, count=0 }}.
+    VNode_namespace = list_to_atom("roots_" ++ integer_to_list(Partition)),
+    ok = init_ets(VNode_namespace),
+    ok = init_storage_process(VNode_namespace),
+    {ok, #state { partition=Partition, vnode_namespace = VNode_namespace, count=0 }}.
 
-% Sample command: respond to a ping
-handle_command({Id, {create, Root_module, Args}}, _Sender, State) ->
-    io:format("create root: id:~p ~p~n", [Id, Args]),
-    {ok, Pid} = hasler_root_sup:start_root_fsm(node(), Id, Root_module, Args),
+% handles create command
+handle_command({Root_id, {create, Root_module, Args}}, Sender, State) ->
+%%     io:format("create root: id:~p ~p~n", [Id, Args]),
+    case hasler_root_sup:start_root_fsm(node(), Root_id, Root_module, Args, Sender) of
+        {ok, Pid} ->
+            insert_root_ets(State#state.vnode_namespace, Root_id, Pid),
+            {noreply, State};
 
-    {noreply, State};
+        {error, Message} ->
+            hasler:reply(Sender, Message),
+            io:format("stopped with: ~p~n", [Message]),
+            continue
+    end;
+
+%% handles commands without parameters
+handle_command({Root_id, Command_name}, Sender, State) ->
+%%     io:format("create root: id:~p ~p~n", [Id, Args]),
+    case get_root_status(Root_id, State#state.vnode_namespace) of
+        {running, Pid} ->
+            hasler_root_sup:call_root_fsm(Pid, Command_name, Sender),
+            {noreply, State};
+        _ ->
+            continue
+    end;
 
 handle_command(Command, _Sender, State) ->
     io:format("unknown root command: ~p~n", [Command]),
     {noreply, State}.
-
 
 handle_handoff_command(_Message, _Sender, State) ->
     {noreply, State}.
@@ -68,4 +88,23 @@ handle_exit(_Pid, _Reason, State) ->
     {noreply, State}.
 
 terminate(_Reason, _State) ->
+    ok.
+
+%% private ETS
+init_ets(Table_name) ->
+    Table_name = ets:new(Table_name, [named_table, set, protected]),
+    ok.
+
+insert_root_ets(Table_name, Root_id, Pid) ->
+    ets:insert(Table_name, {Root_id, Pid}).
+
+get_root_status(Root_id, Table_name) ->
+    case ets:lookup(Table_name, Root_id) of
+        [] -> non_existent;
+        [{_, Pid}] ->
+            {running, Pid}
+    end.
+
+%% storage
+init_storage_process(Storage_name) ->
     ok.

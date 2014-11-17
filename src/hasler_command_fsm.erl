@@ -20,7 +20,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {module, name, args, inner_state}).
+-record(state, {module, name, args, inner_state, inner_state_name}).
 
 %%%===================================================================
 %%% API
@@ -39,11 +39,18 @@ start_link(Module, Command) ->
 % ignore |
 % {stop, StopReason}
 init([Module, {Name, Args}]) ->
-    io:format("command started ~p ! ~p ~n",[Module, Name]),
-    State = #state{module = Module, name = Name, args = Args},
-    case erlang:apply(Module, start, [{Name, Args}]) of
-        {ok} -> {ok, waiting, State};
-        {stop, _Reason} -> {ok, waiting, State}
+%%     io:format("command started ~p ! ~p ~n",[Module, Name]),
+    case erlang:apply(Module, Name, [Args]) of
+        {ok, State_name, New_inner_state} ->
+            NewState = #state{
+                            module = Module,
+                            name = Name,
+                            args = Args,
+                            inner_state = New_inner_state,
+                            inner_state_name = State_name},
+            {ok, waiting, NewState};
+
+        {stop, _Reason} -> {stop, normal}
     end.
 
 
@@ -68,10 +75,20 @@ running(_Event, State) ->
 running_again(_Event, State) ->
     {next_state, running_again, State}.
 
+waiting(Event, State = #state{module = Module, inner_state = Inner_state, inner_state_name = Inner_state_name}) ->
+%%     io:format("event: ~p ~p state~n~n", [Event, Inner_state_name]),
+    case erlang:apply(Module, Inner_state_name, [Event, Inner_state]) of
+        {stop, _Reason} ->
+%%             io:format("event fsm end requested~n", []),
+            {stop, normal, State};
 
-waiting(Event, State) ->
-    io:format("event: ~p state: ~p ~n~n",[Event, State]),
-    {stop, normal, State}.
+        {ok, State_name, New_inner_state} ->
+            NewState = State#state{
+                inner_state = New_inner_state,
+                inner_state_name = State_name},
+            {ok, waiting, NewState}
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private
